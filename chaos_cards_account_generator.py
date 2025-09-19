@@ -516,7 +516,10 @@ class ChaosCardsAccountGenerator:
                     return False
                 
                 # Submit the form
-                if not self._submit_registration_form(sb):
+                submit_result = self._submit_registration_form(sb)
+                if submit_result == 'already_registered':
+                    return 'already_registered'
+                elif submit_result == 'failed':
                     return False
                 
                 # Check if registration was successful
@@ -664,7 +667,7 @@ class ChaosCardsAccountGenerator:
             print(f"❌ Error handling CAPTCHA: {e}")
             return False
 
-    def _submit_registration_form(self, sb) -> bool:
+    def _submit_registration_form(self, sb) -> str:
         """
         Submit the registration form
         
@@ -672,7 +675,7 @@ class ChaosCardsAccountGenerator:
             sb: SeleniumBase driver instance
             
         Returns:
-            True if submission successful, False otherwise
+            'success' if submission successful, 'already_registered' if email exists, 'failed' otherwise
         """
         try:
             # Wait for any CAPTCHA to load (Cloudflare Turnstile)
@@ -696,7 +699,7 @@ class ChaosCardsAccountGenerator:
             
             if not submit_button:
                 log.error("Could not find registration submit button")
-                return False
+                return 'failed'
             
             # Ensure button is clickable
             sb.wait_for_element_clickable(submit_button, timeout=10)
@@ -707,11 +710,36 @@ class ChaosCardsAccountGenerator:
             # Wait for submission to process
             time.sleep(5)
             
-            return True
+            # Check specifically for "already registered" error
+            try:
+                # Look for the specific error field with data-error-message
+                error_field_selectors = [
+                    'li.field_email.required.error.tooltipped[data-error-message*="already been registered"]',
+                    'li#registration_form_email_field.error[data-error-message*="already been registered"]',
+                    'li.field_email.error[data-error-message*="already been registered"]'
+                ]
+                
+                for selector in error_field_selectors:
+                    if sb.is_element_present(selector):
+                        error_message = sb.get_attribute(selector, 'data-error-message')
+                        if error_message and ("already been registered" in error_message or "already registered" in error_message):
+                            print(f"📧 Email already registered: {error_message}")
+                            return 'already_registered'
+                
+                # Also check page text for already registered messages
+                page_text = sb.get_text("body").lower()
+                if "email address has already been registered" in page_text or "already registered" in page_text:
+                    print("📧 Email already registered (found in page text)")
+                    return 'already_registered'
+                        
+            except Exception as e:
+                print(f"⚠️ Error checking for already registered: {e}")
+            
+            return 'success'
             
         except Exception as e:
             log.error(f"Error submitting registration form: {e}")
-            return False
+            return 'failed'
 
     def _check_registration_success(self, sb) -> bool:
         """

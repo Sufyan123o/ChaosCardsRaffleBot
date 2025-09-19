@@ -156,13 +156,22 @@ def main():
                 
                 success = generator._create_single_account(account_data)
                 
-                if success:
+                if success == 'already_registered':
+                    # Email already registered - mark as completed with special password
+                    print(f"📧 Email {email} already registered - marking as completed")
+                    update_account_status_in_csv("accountgen.csv", row_number, "✅ Completed", "IDK")
+                    successful_count += 1
+                    break  # No need to retry
+                elif success:
                     break
                 elif attempt < max_retries:
                     print(f"⚠️ Attempt {attempt} failed, will retry with fresh session...")
                     time.sleep(3)  # Brief pause before retry
             
-            if success:
+            if success == 'already_registered':
+                # Already handled above
+                pass
+            elif success:
                 successful_count += 1
                 # Mark as completed with password
                 update_account_status_in_csv("accountgen.csv", row_number, "✅ Completed", account_data["password"])

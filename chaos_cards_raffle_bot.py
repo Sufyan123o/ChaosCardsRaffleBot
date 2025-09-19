@@ -90,6 +90,36 @@ class ChaosCardsRaffleBot:
         """Send red notification for skipped entry"""
         self.send_webhook_notification(email, index, f"❌ Skipped - {reason}", 0xFF0000)  # Red
 
+    def _load_verified_emails_from_json(self, json_file: str = "verification_results_20250919_191908.json") -> set:
+        """TEMPORARY: Load verified emails from JSON file to exclude from raffle entries
+        
+        Args:
+            json_file: Path to the verification results JSON file
+            
+        Returns:
+            Set of verified email addresses
+        """
+        verified_emails = set()
+        
+        if not os.path.exists(json_file):
+            print(f"⚠️ Verification JSON file {json_file} not found - proceeding with all emails")
+            return verified_emails
+        
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                verification_data = json.load(f)
+                
+            for entry in verification_data:
+                if entry.get('success') and entry.get('email_address'):
+                    verified_emails.add(entry['email_address'])
+                    
+            print(f"📋 Loaded {len(verified_emails)} verified emails to exclude from raffle")
+            
+        except Exception as e:
+            print(f"⚠️ Error reading verification JSON: {e} - proceeding with all emails")
+            
+        return verified_emails
+
     def enter_raffle(self, url: str, delay_between_entries: int = 2) -> dict:
         """
         Enter raffle for a specific product URL with all provided emails
@@ -101,9 +131,20 @@ class ChaosCardsRaffleBot:
         Returns:
             Dictionary with results summary
         """
+        # TEMPORARY: Load verified emails to exclude
+        verified_emails = self._load_verified_emails_from_json()
+        
+        # Filter out verified emails temporarily
+        filtered_emails = [email for email in self.emails if email not in verified_emails]
+        
+        if len(filtered_emails) != len(self.emails):
+            excluded_count = len(self.emails) - len(filtered_emails)
+            print(f"🔄 TEMPORARILY excluding {excluded_count} verified emails from raffle")
+            print(f"📊 Processing {len(filtered_emails)} unverified emails out of {len(self.emails)} total")
+        
         # Start from the first email (index 0)
         start_index = 0
-        emails_to_process = self.emails[start_index:]
+        emails_to_process = filtered_emails[start_index:]
         
         results = {
             "url": url,
@@ -111,14 +152,15 @@ class ChaosCardsRaffleBot:
             "successful_entries": 0,
             "failed_entries": 0,
             "errors": [],
-            "starting_at_email": start_index + 1
+            "starting_at_email": start_index + 1,
+            "excluded_verified": len(self.emails) - len(filtered_emails)
         }
         
         log.info(f"Starting raffle entries for: {url}")
-        print(f"🚀 Starting from email {start_index + 1} out of {len(self.emails)} total emails")
+        print(f"🚀 Starting from email {start_index + 1} out of {len(filtered_emails)} filtered emails")
         
         for i, email in enumerate(emails_to_process, start_index + 1):
-            print(f"Processing email {i}/{len(self.emails)}: {email}")
+            print(f"Processing email {i}/{len(filtered_emails)}: {email}")
             self.current_email_index = i  # Set current index for webhook notifications
             try:
                 success = self._enter_single_email(url, email)
@@ -134,7 +176,7 @@ class ChaosCardsRaffleBot:
                 log.error(error_msg)
             
             # Add delay between entries to avoid being flagged
-            if i < len(self.emails):
+            if i < len(filtered_emails):
                 time.sleep(delay_between_entries)
         
         return results
