@@ -65,8 +65,8 @@ class ChaosCardsRaffleBot:
         Returns:
             Dictionary with results summary
         """
-        # Start from email 99 (index 98)
-        start_index = 98
+        # Start from the first email (index 0)
+        start_index = 0
         emails_to_process = self.emails[start_index:]
         
         results = {
