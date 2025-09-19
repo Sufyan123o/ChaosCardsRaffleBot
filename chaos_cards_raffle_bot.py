@@ -11,6 +11,9 @@ from typing import List, Optional
 import secrets
 import csv
 import os
+import requests
+import json
+from datetime import datetime
 
 import chromedriver_autoinstaller
 from seleniumbase import SB
@@ -31,16 +34,18 @@ log = logging.getLogger(__name__)
 class ChaosCardsRaffleBot:
     """Bot for automatically entering Chaos Cards raffles with multiple emails"""
     
-    def __init__(self, emails: List[str], headless: bool = False):
+    def __init__(self, emails: List[str], headless: bool = False, webhook_url: str = None):
         """
         Initialize the raffle bot
         
         Args:
             emails: List of email addresses to use for entries
             headless: Whether to run browser in headless mode
+            webhook_url: Discord webhook URL for notifications
         """
         self.emails = emails
         self.headless = headless
+        self.webhook_url = webhook_url
         self.user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.3",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.3",
@@ -53,6 +58,37 @@ class ChaosCardsRaffleBot:
         except urllib.error.URLError as e:
             log.error(f"Error with chromedriver auto-installation - {e}")
             raise
+
+    def send_webhook_notification(self, email: str, index: int, status: str, color: int):
+        """Send Discord webhook notification for entry status"""
+        if not self.webhook_url:
+            return
+            
+        embed = {
+            "title": f"Raffle Entry #{index}",
+            "description": f"**Email:** {email}\n**Status:** {status}",
+            "color": color,
+            "timestamp": datetime.now().isoformat() + "Z"
+        }
+        
+        payload = {
+            "embeds": [embed]
+        }
+        
+        try:
+            response = requests.post(self.webhook_url, json=payload)
+            if response.status_code != 204:
+                log.warning(f"Webhook failed: {response.status_code}")
+        except Exception as e:
+            log.error(f"Webhook error: {e}")
+
+    def send_success_notification(self, email: str, index: int):
+        """Send green notification for successful entry"""
+        self.send_webhook_notification(email, index, "✅ Successfully Entered", 0x00FF00)  # Green
+        
+    def send_skip_notification(self, email: str, index: int, reason: str = "Already Registered"):
+        """Send red notification for skipped entry"""
+        self.send_webhook_notification(email, index, f"❌ Skipped - {reason}", 0xFF0000)  # Red
 
     def enter_raffle(self, url: str, delay_between_entries: int = 2) -> dict:
         """
@@ -83,6 +119,7 @@ class ChaosCardsRaffleBot:
         
         for i, email in enumerate(emails_to_process, start_index + 1):
             print(f"Processing email {i}/{len(self.emails)}: {email}")
+            self.current_email_index = i  # Set current index for webhook notifications
             try:
                 success = self._enter_single_email(url, email)
                 if success:
@@ -162,9 +199,11 @@ class ChaosCardsRaffleBot:
                 
                 if submission_result == "already_registered":
                     print(f"⚠️ Email {email} is already registered for this product - skipping")
+                    self.send_skip_notification(email, self.current_email_index, "Already Registered")
                     return True  # Consider this as success since email is already in the system
                 elif submission_result == True:
                     print(f"✅ Successfully submitted {email}")
+                    self.send_success_notification(email, self.current_email_index)
                     return True
                 else:
                     print(f"❌ Failed to submit {email}")
@@ -599,10 +638,12 @@ def main():
         # Add more URLs here
     ]
     
+    DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1418646293550469262/4u7xHc4uOdC0NZi9At_oDa0pQoXbk8-vjGZxQSbgbEsTNacgg4qeyH1t17g8LCZVsUt8"
     # Create bot instance
     bot = ChaosCardsRaffleBot(
         emails=EMAIL_LIST,
-        headless=True  # Set to True for headless mode
+        headless=True,  # Set to True for headless mode
+        webhook_url=DISCORD_WEBHOOK_URL  # Add webhook URL for notifications
     )
     
     try:

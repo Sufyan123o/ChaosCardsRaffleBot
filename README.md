@@ -3,6 +3,20 @@
 <p style="font-size: 24px;">A comprehensive toolkit to mass create mass entries for Chaos Cards raffles. This includes account creation, account verification, and raffle entries.</p>
 
 
+STEP 1: Create a CSV in the format below. You can use any email provider, but iCloud is recommended for ease of use. In the format "name,,first_line_address,City,PostalCode"
+
+STEP 2: Run account_generator.py to create accounts
+
+STEP 3: Run emailscraper.py to download verification emails
+
+STEP 4: Run VerifyAccounts.py to automatically verify accounts
+
+STEP 5: Run chaos_cards_raffle_bot.py to enter raffles
+
+Wait for results!
+
+```csv
+
 ## 📁 Project Overview
 
 This project contains several Python scripts for automating various tasks related to Chaos Cards:
@@ -171,6 +185,19 @@ Create `proxies.txt` with proxy information if needed.
 ### Raffle Bot Configuration
 - **Headless Mode**: Runs without visible browser
 - **Target URL**: Update `RAFFLE_URLS` in the script
+- **Discord Notifications**: Optional webhook integration for real-time updates
+
+#### Discord Webhook Setup (Optional)
+1. Create a Discord webhook in your server:
+   - Go to Server Settings → Integrations → Webhooks
+   - Click "New Webhook" and copy the webhook URL
+2. Update the raffle bot script:
+   ```python
+   DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_HERE"
+   ```
+3. The bot will send notifications for:
+   - ✅ **Successful entries** (Green) - Email and entry number
+   - ❌ **Skipped entries** (Red) - Already registered emails
 
 ### Account Generator Configuration
 - **Headless Mode**: Set in script initialization

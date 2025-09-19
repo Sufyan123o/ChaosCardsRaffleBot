@@ -124,7 +124,7 @@ def main():
     print(f"Creating accounts for {len(selected_accounts)} people...")
     
     # Initialize and run account generator
-    generator = ChaosCardsAccountGenerator(selected_accounts, headless=False)
+    generator = ChaosCardsAccountGenerator(selected_accounts, headless=True)
     
     # Process accounts one by one with status updates
     successful_count = 0

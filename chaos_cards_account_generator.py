@@ -896,7 +896,7 @@ def main():
     # Create generator instance
     generator = ChaosCardsAccountGenerator(
         emails=email_list,
-        headless=False  # Keep visible for analysis
+        headless=True  # Keep visible for analysis
     )
     
     try:
