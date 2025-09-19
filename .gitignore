@@ -1,0 +1,7 @@
+# Ignore all folders
+*/
+
+# Ignore all CSV, JSON, and TXT files
+*.csv
+*.json
+*.txt
